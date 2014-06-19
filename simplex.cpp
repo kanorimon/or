@@ -1,55 +1,64 @@
 #include <iostream>
 #include <algorithm>
+#include <iomanip>
 
 using namespace std;
 
-//simplex tableau
-double x[10][10];
-double y[10][10];
-
+//constant
+const int MAX_NO = 10;
 
 //valiable
-int nb_cnt;
-int N[10];
+int n_cnt;
+int N[MAX_NO];
 int b_cnt;
-int B[10];
+int B[MAX_NO];
 
-void print_tableau(double a[10][10]){
+//simplex tableau
+double xf;
+double c[MAX_NO];
+double b[MAX_NO];
+double a[MAX_NO][MAX_NO];
+
+void print_tableau(int no){
 	
-	cout << "***start" << endl;
+	cout << "(D_" << no << ")" << endl;
 	
-	cout << "     ";
-	for(int i=1;i<nb_cnt;i++){
-		cout << "x" << N[i] << " ";
+	cout << "                 ";
+	for(int i=0;i<n_cnt;i++){
+		cout << setw(7) << right << "x" << N[i];
 	}
 	cout << endl;
 	
+	cout << "         ";
+	cout << setw(8) << right << xf;
+	
+	for(int i=0;i<n_cnt;i++){
+		cout << setw(8) << right << c[N[i]];
+	}
+
+	cout << endl;
 	for(int i=0;i<b_cnt;i++){
-		if(i > 0){
-			cout << "x" << B[i] << " ";
-		}else{
-			cout << "   ";
-		}
-		for(int j=0;j<nb_cnt;j++){
-			cout << a[B[i]][N[j]] << " ";
+		cout <<  setw(8) << right << "x" << B[i];
+		cout <<  setw(8) << right << b[B[i]];
+		for(int j=0;j<n_cnt;j++){
+			cout <<  setw(8) << right << a[B[i]][N[j]];
 		}
 		cout << endl;
 	}
 	
-	cout << "***end" << endl;
-	
+	cout << endl;
 }
 
 //step1
 bool check_optimality(){
 	
 	bool minus = false;
-	for(int i=1;i<nb_cnt;i++){
-		if(x[0][N[i]] > 0){
+	for(int i=0;i<n_cnt;i++){
+		if(c[N[i]] > 0){
 			minus = true;
 			break;
 		}
-		cout << "check_optimality = " << minus << " " << x[0][N[i]] << endl;
+	//	cout << "check_optimality = " << minus << " " << c[N[i]] << endl;
 	}
 	return minus;
 }
@@ -58,26 +67,26 @@ bool check_optimality(){
 int get_s(){
 	
 	int s = 0;
-	for(int i=1;i<nb_cnt;i++){
+	for(int i=0;i<n_cnt;i++){
 		//cout << N[i] << " " << x[0][N[i]]  << endl;
-		if(x[0][N[i]] > 0){
+		if(c[N[i]] > 0){
 			s = N[i];
 			break;
 		}
 	}
-	//cout << "s = " << s << " " << x[0][s] << endl;
+	//cout << "s = " << s << " " << c[s] << endl;
 	return s;
 }
 
 //step3
 bool check_unbounded(int pibot_column){
 	bool minus = false;
-	for(int i=1;i<b_cnt;i++){
-		if(x[B[i]][pibot_column]*-1 <= 0){
+	for(int i=0;i<b_cnt;i++){
+		if(a[B[i]][pibot_column]*-1 > 0){
 			minus = true;
 			break;
 		}
-		//cout << "check_unbounded = " << minus << " " << x[B[i]][pibot_column]*x[0][pibot_column] << endl;
+	//	cout << "check_unbounded = " << minus << " " << a[B[i]][pibot_column]*c[pibot_column] << endl;
 	}
 	return minus;
 }
@@ -86,23 +95,22 @@ bool check_unbounded(int pibot_column){
 int get_r(int s){
 	int r=0;
 	int mini = 100000;
-	for(int i=1;i<b_cnt;i++){
-		if(x[B[i]][s]*-1 > 0 && x[B[i]][0]/x[B[i]][s]*-1 < mini){
+	for(int i=0;i<b_cnt;i++){
+		if(a[B[i]][s]*-1 > 0 && b[B[i]]/a[B[i]][s]*-1 < mini){
 				r = B[i];
-				mini = x[B[i]][0]/x[B[i]][s]*-1;
-		
+				mini = b[B[i]]/a[B[i]][s]*-1;
 		}
 	}
-	//cout << "r = " << r << " " << x[r][0] << endl;
+	//cout << "r = " << r << " " << b[r] << endl;
 	return r;
 }
 
 int main(){
 	
-	//load
-	cin >> nb_cnt >> b_cnt;
-
-	for(int i=0;i<nb_cnt;i++){
+	/* load */
+	cin >> n_cnt >> b_cnt;
+	
+	for(int i=0;i<n_cnt;i++){
 		cin >> N[i];
 	}
 	
@@ -110,112 +118,94 @@ int main(){
 		cin >> B[i];
 	}
 	
+	cin >> xf;
+	
+	for(int i=0;i<n_cnt;i++){
+		cin >> c[N[i]];
+	}
+	
 	for(int i=0;i<b_cnt;i++){
-		for(int j=0;j<nb_cnt;j++){
-			cin >> x[B[i]][N[j]];
+		cin >> b[B[i]];
+		for(int j=0;j<n_cnt;j++){
+			cin >> a[B[i]][N[j]];
 		}
 	}
 	
-	for(int k=0;k<5;k++){
-		print_tableau(x);
-	
-		//step1
+	/* simplex method */
+	int no = 0;
+	while(true){
+		
+		/* print tableau */
+		print_tableau(++no);
+		
+		/* step1 */
 		if(!check_optimality()) return 0;
 	
-		//step2
+		/* step2 */
 		int s = get_s();
 	
+		/* step3 */
 		if(!check_unbounded(s)) return 0;
 		
+		/* step4 */
 		int r = get_r(s);
-	
-		//print_tableau(x);
-	
-	
-		double tmpN[10];
-		double tmpB[10];
-		int tmp_nb_i;
-		int tmp_b_i;
 		
-		for(int i=1;i<nb_cnt;i++){
+		/* step5 */
+		
+		for(int i=0;i<n_cnt;i++){
 			if(N[i] == s){
-				for(int j=0;j<b_cnt;j++){
-					tmpN[j] = x[B[j]][s];
-				//	cout << s << " " <<  B[j] << " " << tmpN[j] << endl;
-				}
-				tmp_nb_i = i;
+				N[i] = r;
 				break;
 			}
 		}
 
-		for(int i=1;i<b_cnt;i++){
+		for(int i=0;i<b_cnt;i++){
 			if(B[i] == r){
-				for(int j=0;j<b_cnt;j++){
-					tmpB[j] = x[r][N[j]];
-					//	cout << r << " " <<  N[j] << " " << tmpB[j] << endl;
-				}
-				tmp_b_i = i;
+				B[i] = s;
 				break;
 			}
 		}
-	
-		N[tmp_nb_i] = r;
-		B[tmp_b_i] = s;
 		
-		double val = x[r][s]*-1.0;
+		double ars = a[r][s] * -1.0;
+		
+		xf = xf + b[r] / ars * c[s];
+		
+		for(int j=0;j<n_cnt;j++){
+			if(N[j]==r){
+				c[N[j]] = -1.0 * 1.0 / ars * c[s];
+			}else{
+				c[N[j]] = c[N[j]] - (a[r][N[j]] * -1.0 / ars * c[s]);
+			}
+		}
 		
 		for(int i=0;i<b_cnt;i++){
-			for(int j=0;j<nb_cnt;j++){
-				//cout << B[i] << " " << N[j] << " ";
-				
+			if(B[i]==s){
+				b[B[i]] = b[r] / ars;
+			}else{
+				b[B[i]] = b[B[i]] - (b[r] / ars * a[B[i]][s] * -1.0);
+			}
+
+			for(int j=0;j<n_cnt;j++){
 				if(B[i]==s){
-					if(j==0){
-					//	cout << x[r][0] << "/" << val;
-						x[B[i]][N[j]] = x[r][0]/val;
-					//	cout << " = " << x[B[i]][N[j]]<< endl;
-					}else if(N[j]==r){
-					//	cout << "-1*1/" << val;
-						x[B[i]][N[j]] =  -1.0*1.0/val;
-					//	cout << " = " << x[B[i]][N[j]]<< endl;
-						
+					if(N[j]==r){
+						a[B[i]][N[j]] = -1.0 * 1.0 / ars;
 					}else{
-					//	cout << "-1*" << x[r][N[j]] << "/" << val;
-						x[B[i]][N[j]] =  -1.0*x[r][N[j]]*-1/val;
-					//	cout << " = " << x[B[i]][N[j]]<< endl;
+						a[B[i]][N[j]] = -1.0 * a[r][N[j]] * -1.0 / ars;
 					}
 				}else if(N[j]==r){
-					if(i==0){
-					//	cout << "-1*1/" << val << "*" << x[0][s];
-						x[B[i]][N[j]] =  -1.0*1.0/val*x[0][s];
-					//	cout << " = " << x[B[i]][N[j]]<< endl;
-					}else if(B[i]==s){
-					//	cout << "-1*1/" << val;
-						x[B[i]][N[j]] =  -1.0*1.0/val;
-					//	cout << " = " << x[B[i]][N[j]]<< endl;
-						
+					if(B[i]==s){
+						a[B[i]][N[j]] = -1.0 * 1.0 / ars;
 					}else{
-					//	cout << "1/" << val << "/" << x[B[i]][s];
-						x[B[i]][N[j]] =  1.0/val*x[B[i]][s]*-1;
-					//	cout << " = " << x[B[i]][N[j]]<< endl;
+						a[B[i]][N[j]] = 1.0 / ars * a[B[i]][s] * -1.0;
 					}
 				}else{
-					//cout << endl;
-				
-					if(j==0){
-					//cout << x[B[i]][N[j]] << " > " << x[B[i]][N[j]]  << " + " << x[r][N[j]] << " / " << x[r][s]*-1 << " * " << x[B[i]][s] << endl;
-						x[B[i]][N[j]] = x[B[i]][N[j]] + x[r][N[j]]/val*x[B[i]][s];
-					}else{
-					//cout << x[B[i]][N[j]] << " > " << x[B[i]][N[j]]  << " - " << x[r][N[j]]*-1 << " / " << x[r][s]*-1 << " * " << x[B[i]][s] << endl;
-						x[B[i]][N[j]] = x[B[i]][N[j]] - x[r][N[j]]*-1.0/val*x[B[i]][s];
-					}
+					a[B[i]][N[j]] = -1.0 * ( a[B[i]][N[j]] * -1.0 - (a[r][N[j]] * -1.0 / ars * a[B[i]][s] * -1.0));
 				}
-					
-				
 			}
 		}
 	}
 	
-	print_tableau(x);
+	print_tableau(no);
 	
 	
 	return 0;
