@@ -4,21 +4,30 @@
 
 using namespace std;
 
-//constant
+/* 定数 */
 const int MAX_NO = 10;
 
-//valiable
+/* 非基底変数 */
 int n_cnt;
 int N[MAX_NO];
+
+/* 基底変数 */
 int b_cnt;
 int B[MAX_NO];
 
-//simplex tableau
+/* シンプレックス表 */
 double xf;
 double c[MAX_NO];
 double b[MAX_NO];
 double a[MAX_NO][MAX_NO];
 
+
+/*
+ * シンプレックス表の出力
+ * 
+ * <引数>
+ * 辞書番号
+ */
 void print_tableau(int no){
 	
 	cout << "(D_" << no << ")" << endl;
@@ -49,21 +58,37 @@ void print_tableau(int no){
 	cout << endl;
 }
 
-//step1
-bool check_optimality(){
-	
-	bool minus = false;
-	for(int i=0;i<n_cnt;i++){
-		if(c[N[i]] > 0){
-			minus = true;
-			break;
+/* 一段階目の必要性チェック */
+bool check_first_simplex(){
+	for(int i=0;i<b_cnt;i++){
+		if(b[B[i]] < 0){
+			return true;
 		}
-	//	cout << "check_optimality = " << minus << " " << c[N[i]] << endl;
 	}
-	return minus;
+	return false;
 }
 
-//step2
+/* 
+ * Step1:最適性判定
+ *
+ * <引数>
+ * 段階,ループ回数
+ */
+bool check_optimality(int level,int cnt){
+	
+	if(level < 2 && cnt < 2){
+		return true;
+	}
+	for(int i=0;i<n_cnt;i++){
+		if(c[N[i]] > 0){
+			return true;
+		}
+		//cout << "check_optimality = " << c[N[i]] << endl;
+	}
+	return false;
+}
+
+/* Step2:ピボット列選択 */
 int get_s(){
 	
 	int s = 0;
@@ -78,36 +103,156 @@ int get_s(){
 	return s;
 }
 
-//step3
-bool check_unbounded(int pibot_column){
-	bool minus = false;
-	for(int i=0;i<b_cnt;i++){
-		if(a[B[i]][pibot_column]*-1 > 0){
-			minus = true;
-			break;
-		}
-	//	cout << "check_unbounded = " << minus << " " << a[B[i]][pibot_column]*c[pibot_column] << endl;
+/* 
+ * Step3:非有界性判定 
+ *
+ * <引数>
+ * ピボット列の添え字,段階,ループ回数
+ */
+bool check_unbounded(int s,int level,int cnt){
+	if(level <2 && cnt < 2){
+		return true;
 	}
-	return minus;
+	for(int i=0;i<b_cnt;i++){
+		if(a[B[i]][s]*-1 > 0){
+			return true;
+		}
+		//cout << "check_unbounded = " << a[B[i]][s]*c[s] << endl;
+	}
+	cout << "unbounded" << endl;
+	return false;
 }
 
-//step4
-int get_r(int s){
+/* 
+ * Step4:ピボット行選択 
+ *
+ * <引数>
+ * ピボット列の添え字,段階,ループ回数
+ */
+int get_r(int s,int level,int cnt){
 	int r=0;
 	int mini = 100000;
-	for(int i=0;i<b_cnt;i++){
-		if(a[B[i]][s]*-1 > 0 && b[B[i]]/a[B[i]][s]*-1 < mini){
+	if(level < 2 && cnt < 2){
+		for(int i=0;i<b_cnt;i++){
+			if(b[B[i]]/a[B[i]][s] < mini){
+				r = B[i];
+				mini = b[B[i]]/a[B[i]][s];
+			}
+		}
+	}else{
+		for(int i=0;i<b_cnt;i++){
+			if(a[B[i]][s]*-1 > 0 && b[B[i]]/a[B[i]][s]*-1 < mini){
 				r = B[i];
 				mini = b[B[i]]/a[B[i]][s]*-1;
+			}
 		}
 	}
+	
 	//cout << "r = " << r << " " << b[r] << endl;
 	return r;
 }
 
+/* 
+ * Step5:ピボット演算 
+ *
+ * <引数>
+ * ピボット行,ピボット列
+ */
+void pibot(int r,int s){
+	for(int i=0;i<n_cnt;i++){
+		if(N[i] == s){
+			N[i] = r;
+			break;
+		}
+	}
+	
+	for(int i=0;i<b_cnt;i++){
+		if(B[i] == r){
+			B[i] = s;
+			break;
+		}
+	}
+
+	double ars = a[r][s] * -1.0;
+	
+	xf = xf + b[r] / ars * c[s];
+
+	for(int j=0;j<n_cnt;j++){
+		if(N[j]==r){
+			c[N[j]] = -1.0 * 1.0 / ars * c[s];
+		}else{
+			c[N[j]] = c[N[j]] - (a[r][N[j]] * -1.0 / ars * c[s]);
+		}
+	}
+
+	for(int i=0;i<b_cnt;i++){
+		if(B[i]==s){
+			b[B[i]] = b[r] / ars;
+		}else{
+			b[B[i]] = b[B[i]] - (b[r] / ars * a[B[i]][s] * -1.0);
+		}
+
+		for(int j=0;j<n_cnt;j++){
+			if(B[i]==s){
+				if(N[j]==r){
+					a[B[i]][N[j]] = -1.0 * 1.0 / ars;
+				}else{
+					a[B[i]][N[j]] = -1.0 * a[r][N[j]] * -1.0 / ars;
+				}
+			}else if(N[j]==r){
+				if(B[i]==s){
+					a[B[i]][N[j]] = -1.0 * 1.0 / ars;
+				}else{
+					a[B[i]][N[j]] = 1.0 / ars * a[B[i]][s] * -1.0;
+				}
+			}else{
+				a[B[i]][N[j]] = -1.0 * ( a[B[i]][N[j]] * -1.0 - (a[r][N[j]] * -1.0 / ars * a[B[i]][s] * -1.0));
+			}
+		}
+	}
+}
+
+/* 
+ * シンプレックス法 
+ *
+ * <引数>
+ * 段階
+ */
+bool simplex_method(int level){
+	for(int i=1;;i++){
+		
+		/* シンプレックス表出力 */
+		print_tableau(i);
+		
+		/* Step1:最適性判定 */
+		if(!check_optimality(level,i)) return false;
+	
+		/* Step2:ピボット列選択 */
+		int s = get_s();
+	
+		/* Step3:非有界性判定 */
+		if(!check_unbounded(s,level,i)) return false;
+		
+		/* Step4:ピボット行選択 */
+		int r = get_r(s,level,i);
+		
+		/* Step5:ピボット演算 */
+		pibot(r,s);
+	}
+	return true;
+}
+
 int main(){
 	
-	/* load */
+	/* 
+	 * 等式標準形のシンプレックス表を読み込む
+	 * 
+	 * <入力ファイルフォーマット>
+	 * 非基底変数の数 基底変数の数
+	 * 非基底変数の添え字(1,2,...,n)
+	 * 規定変数の添え字(n+1,n+2,...,n+m)
+	 * シンプレックス表
+	 */
 	cin >> n_cnt >> b_cnt;
 	
 	for(int i=0;i<n_cnt;i++){
@@ -131,82 +276,88 @@ int main(){
 		}
 	}
 	
-	/* simplex method */
-	int no = 0;
-	while(true){
+	/*
+	 * シンプレックス法（一段階目）
+	 */
+	if(check_first_simplex()){
 		
-		/* print tableau */
-		print_tableau(++no);
+		int tmpN[n_cnt];
+		double tmpc[n_cnt];
+		for(int i=0;i<n_cnt;i++){
+			tmpN[i] = N[i];
+			tmpc[N[i]] = c[N[i]];
+		}
 		
-		/* step1 */
-		if(!check_optimality()) return 0;
-	
-		/* step2 */
-		int s = get_s();
-	
-		/* step3 */
-		if(!check_unbounded(s)) return 0;
-		
-		/* step4 */
-		int r = get_r(s);
-		
-		/* step5 */
+		N[n_cnt] = 0;
+		n_cnt++;
 		
 		for(int i=0;i<n_cnt;i++){
-			if(N[i] == s){
-				N[i] = r;
-				break;
-			}
-		}
-
-		for(int i=0;i<b_cnt;i++){
-			if(B[i] == r){
-				B[i] = s;
-				break;
-			}
-		}
-		
-		double ars = a[r][s] * -1.0;
-		
-		xf = xf + b[r] / ars * c[s];
-		
-		for(int j=0;j<n_cnt;j++){
-			if(N[j]==r){
-				c[N[j]] = -1.0 * 1.0 / ars * c[s];
+			if(N[i] == 0){
+				c[N[i]] = -1;
 			}else{
-				c[N[j]] = c[N[j]] - (a[r][N[j]] * -1.0 / ars * c[s]);
+				c[N[i]] = 0;
 			}
 		}
 		
 		for(int i=0;i<b_cnt;i++){
-			if(B[i]==s){
-				b[B[i]] = b[r] / ars;
-			}else{
-				b[B[i]] = b[B[i]] - (b[r] / ars * a[B[i]][s] * -1.0);
+			a[B[i]][0] = 1;
+		}
+		
+		simplex_method(1);
+		
+		if(xf < 0){
+			cout << "non-executable" << endl;
+			return 0;
+		}
+		
+		for(int i=0;i<b_cnt;i++){
+			if(B[i] == 0){
+				for(int j=0;j<n_cnt;j++){
+					if(a[B[i]][N[j]] != 0){
+						pibot(B[i],N[j]);
+						break;
+					}
+				}
+				break;
 			}
-
+		}
+		
+		n_cnt--;
+		bool minus = false;
+		for(int i=0;i<n_cnt;i++){
+			if(N[i] == 0 && !minus){
+				N[i] = N[i+1];
+				minus = true;
+			}else if(minus){
+				N[i] = N[i+1];
+			}
+		}
+		
+		for(int i=0;i<n_cnt;i++){
 			for(int j=0;j<n_cnt;j++){
-				if(B[i]==s){
-					if(N[j]==r){
-						a[B[i]][N[j]] = -1.0 * 1.0 / ars;
-					}else{
-						a[B[i]][N[j]] = -1.0 * a[r][N[j]] * -1.0 / ars;
-					}
-				}else if(N[j]==r){
-					if(B[i]==s){
-						a[B[i]][N[j]] = -1.0 * 1.0 / ars;
-					}else{
-						a[B[i]][N[j]] = 1.0 / ars * a[B[i]][s] * -1.0;
-					}
-				}else{
-					a[B[i]][N[j]] = -1.0 * ( a[B[i]][N[j]] * -1.0 - (a[r][N[j]] * -1.0 / ars * a[B[i]][s] * -1.0));
+				if(N[i] == tmpN[j]){
+					c[N[i]] = tmpc[tmpN[j]];
+					tmpc[tmpN[j]] = 0;
+					break;
 				}
 			}
 		}
+		
+		for(int i=0;i<n_cnt;i++){
+			if(tmpc[tmpN[i]] > 0){
+				xf = b[tmpN[i]];
+				for(int j=0;j<n_cnt;j++){
+					c[N[j]] = c[N[j]] + a[tmpN[i]][N[j]];
+				}
+			}
+		}
+		
 	}
 	
-	print_tableau(no);
-	
+	/*
+	 * シンプレックス法（二段階目）
+	 */
+	simplex_method(2);
 	
 	return 0;
 }
