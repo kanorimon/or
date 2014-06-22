@@ -6,7 +6,6 @@ using namespace std;
 
 /* 定数 */
 const int MAX_NO = 10;
-const int MAX_NO_2 = 20;
 
 /* 非基底変数 */
 int n_cnt;
@@ -31,7 +30,7 @@ double a[MAX_NO][MAX_NO];
  */
 void print_tableau(int no){
 	
-	cout << " SimplexTableau_" << no << endl;
+	cout << "(D_" << no << ")" << endl;
 	
 	cout << "                 ";
 	for(int i=0;i<n_cnt;i++){
@@ -59,28 +58,14 @@ void print_tableau(int no){
 	cout << endl;
 }
 
-/*
- * 最適解の出力
- */
-void print_bestmix(){
-	
-	cout << "--------------------------------------------------------" << endl;
-	
-	cout << " Xf=" << setw(8) << right << fixed << setprecision(3) << xf << endl;
-	double bm[MAX_NO_2];
-	for(int i=0;i<MAX_NO_2;i++){
-		bm[i] = 0.0;
-	}
-	
+/* 一段階目の必要性チェック */
+bool check_first_simplex(){
 	for(int i=0;i<b_cnt;i++){
-		if(b[B[i]] > 0){
-			bm[B[i]] = b[B[i]];
+		if(b[B[i]] < 0){
+			return true;
 		}
 	}
-	
-	for(int i=1;i<n_cnt+b_cnt+1;i++){
-		cout << " X" << i << "=" << setw(8) << right << fixed << setprecision(3) << bm[i] << endl;
-	}
+	return false;
 }
 
 /* 
@@ -240,7 +225,7 @@ bool simplex_method(int level){
 		print_tableau(i);
 		
 		/* Step1:最適性判定 */
-		if(!check_optimality(level,i)) return true;
+		if(!check_optimality(level,i)) return false;
 	
 		/* Step2:ピボット列選択 */
 		int s = get_s();
@@ -257,94 +242,6 @@ bool simplex_method(int level){
 	return true;
 }
 
-/* Phaze1 必要性チェック */
-bool check_first_simplex(){
-	for(int i=0;i<b_cnt;i++){
-		if(b[B[i]] < 0){
-			return true;
-		}
-	}
-	return false;
-}
-
-/* Phaze1 */
-bool simplex_phaze1(){
-	/* Step2: */
-	int tmpN[n_cnt];
-	double tmpc[n_cnt];
-	for(int i=0;i<n_cnt;i++){
-		tmpN[i] = N[i];
-		tmpc[N[i]] = c[N[i]];
-	}
-	
-	N[n_cnt] = 0;
-	n_cnt++;
-	
-	for(int i=0;i<n_cnt;i++){
-		if(N[i] == 0){
-			c[N[i]] = -1;
-		}else{
-			c[N[i]] = 0;
-		}
-	}
-	
-	for(int i=0;i<b_cnt;i++){
-		a[B[i]][0] = 1;
-	}
-	
-	simplex_method(1);
-	
-	/* Step3 */
-	if(xf < 0){
-		cout << "non-executable" << endl;
-		return 0;
-	}
-	
-	/* Step5 */
-	for(int i=0;i<b_cnt;i++){
-		if(B[i] == 0){
-			for(int j=0;j<n_cnt;j++){
-				if(a[B[i]][N[j]] != 0){
-					pibot(B[i],N[j]);
-					break;
-				}
-			}
-			break;
-		}
-	}
-	
-	/* Step4 */
-	n_cnt--;
-	bool minus = false;
-	for(int i=0;i<n_cnt;i++){
-		if(N[i] == 0 && !minus){
-			N[i] = N[i+1];
-			minus = true;
-		}else if(minus){
-			N[i] = N[i+1];
-		}
-	}
-	
-	for(int i=0;i<n_cnt;i++){
-		for(int j=0;j<n_cnt;j++){
-			if(N[i] == tmpN[j]){
-				c[N[i]] = tmpc[tmpN[j]];
-				tmpc[tmpN[j]] = 0;
-				break;
-			}
-		}
-	}
-	
-	for(int i=0;i<n_cnt;i++){
-		if(tmpc[tmpN[i]] > 0){
-			xf = b[tmpN[i]]*tmpc[tmpN[i]];
-			for(int j=0;j<n_cnt;j++){
-				c[N[j]] = c[N[j]] + a[tmpN[i]][N[j]]*tmpc[tmpN[i]];
-			}
-		}
-	}
-}
-
 int main(){
 	
 	/* 
@@ -359,40 +256,108 @@ int main(){
 	cin >> n_cnt >> b_cnt;
 	
 	for(int i=0;i<n_cnt;i++){
-		N[i] = i+1;
+		cin >> N[i];
 	}
 	
 	for(int i=0;i<b_cnt;i++){
-		B[i] = i+1+n_cnt;
+		cin >> B[i];
 	}
 	
-	xf = 0;
+	cin >> xf;
 	
 	for(int i=0;i<n_cnt;i++){
 		cin >> c[N[i]];
 	}
 	
-	char t;
 	for(int i=0;i<b_cnt;i++){
+		cin >> b[B[i]];
 		for(int j=0;j<n_cnt;j++){
 			cin >> a[B[i]][N[j]];
-			a[B[i]][N[j]] *= -1.0;
 		}
-		cin >> t;
-		cin >> b[B[i]];
 	}
 	
 	/*
-	 * Phaze1
+	 * シンプレックス法（一段階目）
 	 */
-	cout << "Phaze1--------------------------------------------------" << endl;
-	if(check_first_simplex()) simplex_phaze1();
+	if(check_first_simplex()){
+		
+		int tmpN[n_cnt];
+		double tmpc[n_cnt];
+		for(int i=0;i<n_cnt;i++){
+			tmpN[i] = N[i];
+			tmpc[N[i]] = c[N[i]];
+		}
+		
+		N[n_cnt] = 0;
+		n_cnt++;
+		
+		for(int i=0;i<n_cnt;i++){
+			if(N[i] == 0){
+				c[N[i]] = -1;
+			}else{
+				c[N[i]] = 0;
+			}
+		}
+		
+		for(int i=0;i<b_cnt;i++){
+			a[B[i]][0] = 1;
+		}
+		
+		simplex_method(1);
+		
+		if(xf < 0){
+			cout << "non-executable" << endl;
+			return 0;
+		}
+		
+		for(int i=0;i<b_cnt;i++){
+			if(B[i] == 0){
+				for(int j=0;j<n_cnt;j++){
+					if(a[B[i]][N[j]] != 0){
+						pibot(B[i],N[j]);
+						break;
+					}
+				}
+				break;
+			}
+		}
+		
+		n_cnt--;
+		bool minus = false;
+		for(int i=0;i<n_cnt;i++){
+			if(N[i] == 0 && !minus){
+				N[i] = N[i+1];
+				minus = true;
+			}else if(minus){
+				N[i] = N[i+1];
+			}
+		}
+		
+		for(int i=0;i<n_cnt;i++){
+			for(int j=0;j<n_cnt;j++){
+				if(N[i] == tmpN[j]){
+					c[N[i]] = tmpc[tmpN[j]];
+					tmpc[tmpN[j]] = 0;
+					break;
+				}
+			}
+		}
+		
+		for(int i=0;i<n_cnt;i++){
+			if(tmpc[tmpN[i]] > 0){
+				xf = b[tmpN[i]]*tmpc[tmpN[i]];
+				for(int j=0;j<n_cnt;j++){
+					c[N[j]] = c[N[j]] + a[tmpN[i]][N[j]]*tmpc[tmpN[i]];
+				}
+			}
+		}
+		
+	}
 	
 	/*
-	 * Phaze2
+	 * シンプレックス法（二段階目）
 	 */
-	cout << "Phaze2--------------------------------------------------" << endl;
-	if(simplex_method(2)) print_bestmix();
+	simplex_method(2);
 	
 	return 0;
 }
